@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 
 export default function LoginPage() {
@@ -10,6 +10,17 @@ export default function LoginPage() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const roleParam = searchParams.get('role');
+
+  useEffect(() => {
+    // Pre-fill email based on role parameter from home page
+    if (roleParam === 'customer') {
+      setEmail('customer@localbuddy.com');
+    } else if (roleParam === 'buddy') {
+      setEmail('buddy@localbuddy.com');
+    }
+  }, [roleParam]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,10 +101,10 @@ export default function LoginPage() {
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
               <Image 
-                src="/logo.png" 
+                src="/localbuddy-logo.png" 
                 alt="LocalBuddy Logo" 
-                width={120} 
-                height={60}
+                width={64}
+                height={64}
                 priority
               />
             </div>
@@ -116,7 +127,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
                 autoFocus
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -208,9 +219,9 @@ export default function LoginPage() {
               <p className="text-xs font-semibold text-blue-900">Customer</p>
               <p className="text-sm text-blue-700 font-mono">customer@localbuddy.com</p>
             </div>
-            <div className="p-3 bg-amber-50 rounded-lg border border-amber-100 hover:border-amber-300 transition-colors cursor-pointer" onClick={() => setEmail('buddy@localbuddy.com')}>
-              <p className="text-xs font-semibold text-amber-900">Buddy (Onboarding)</p>
-              <p className="text-sm text-amber-700 font-mono">buddy@localbuddy.com</p>
+            <div className="p-3 bg-orange-50 rounded-lg border border-orange-100 hover:border-orange-300 transition-colors cursor-pointer" onClick={() => setEmail('buddy@localbuddy.com')}>
+              <p className="text-xs font-semibold text-orange-900">Buddy (Onboarding)</p>
+              <p className="text-sm text-orange-700 font-mono">buddy@localbuddy.com</p>
             </div>
             <div className="p-3 bg-purple-50 rounded-lg border border-purple-100 hover:border-purple-300 transition-colors cursor-pointer" onClick={() => setEmail('admin@localbuddy.com')}>
               <p className="text-xs font-semibold text-purple-900">Admin</p>
@@ -218,8 +229,18 @@ export default function LoginPage() {
             </div>
           </div>
 
+          {/* Back to Home */}
+          <div className="text-center mt-8 pt-8 border-t border-gray-200">
+            <p className="text-sm text-gray-600">
+              Go back to{' '}
+              <a href="/" className="text-blue-600 hover:text-blue-700 font-semibold">
+                Home
+              </a>
+            </p>
+          </div>
+
           {/* Footer */}
-          <p className="text-center text-xs text-gray-500 mt-8">
+          <p className="text-center text-xs text-gray-500 mt-6">
             Click any email above to auto-fill, or enter your own
           </p>
         </div>
