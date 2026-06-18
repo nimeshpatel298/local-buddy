@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import Image from 'next/image';
 
 export default function LoginPage() {
@@ -42,45 +43,14 @@ export default function LoginPage() {
     }
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: email.toLowerCase().trim() }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.message || 'Invalid email. Please try again.');
-        setLoading(false);
+      const res = await signIn('email', { email: email.toLowerCase().trim(), redirect: false });
+      setLoading(false);
+      if (res && (res as any).error) {
+        setError((res as any).error || 'Unable to send sign-in link.');
         return;
       }
 
-      const user = await res.json();
-      
-      // Store user session
-      sessionStorage.setItem('userId', user.id);
-      sessionStorage.setItem('userRole', user.role);
-      sessionStorage.setItem('userStatus', user.status || 'active');
-      sessionStorage.setItem('userEmail', user.email);
-
-      setSuccess('Sign in successful! Redirecting...');
-
-      // Redirect based on role
-      setTimeout(() => {
-        if (user.role === 'CUSTOMER') {
-          router.push('/customer/dashboard');
-        } else if (user.role === 'BUDDY') {
-          router.push(
-            user.status === 'registered'
-              ? '/buddy/dashboard'
-              : '/buddy/onboarding'
-          );
-        } else if (user.role === 'ADMIN') {
-          router.push('/admin/dashboard');
-        }
-      }, 500);
+      setSuccess('Sign-in link sent. Check your email.');
     } catch (err) {
       console.error('Auth error:', err);
       setError('Something went wrong. Please try again.');
