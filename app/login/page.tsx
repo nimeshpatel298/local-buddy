@@ -207,6 +207,10 @@ export default function LoginPage() {
                 Home
               </a>
             </p>
+            <p className="text-sm text-gray-600 mt-2">
+              <a href="/signup" className="text-blue-600 hover:text-blue-700 font-semibold mr-4">Sign up</a>
+              <a href="/forgot-password" className="text-blue-600 hover:text-blue-700 font-semibold">Forgot password?</a>
+            </p>
           </div>
 
           {/* Footer */}
