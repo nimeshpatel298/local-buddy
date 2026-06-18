@@ -17,7 +17,7 @@ export default function Home() {
               height={40}
               priority
             />
-            <span className="text-2xl font-bold text-gray-900">LocalBuddy</span>
+            <span className="text-2xl font-bold text-gray-900">Local-Buddy</span>
           </div>
           <nav className="hidden md:flex gap-8">
             <a href="#features" className="text-gray-700 hover:text-blue-600 transition">Features</a>
