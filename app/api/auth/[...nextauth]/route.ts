@@ -1,49 +1,64 @@
+import 'dotenv/config';
 import NextAuth from "next-auth";
-import EmailProvider from "next-auth/providers/email";
+import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { PrismaClient } from "@prisma/client";
-import { Resend } from "resend";
 import { withAccelerate } from '@prisma/extension-accelerate';
+import bcrypt from "bcrypt";
 
-console.log("--- PRISMA DIAGNOSTICS ---");
-console.log("DATABASE_URL from env:", process.env.DATABASE_URL ? "✅ Loaded" : "❌ UNDEFINED/EMPTY");
-console.log("DIRECT_URL from env:", process.env.DIRECT_URL ? "✅ Loaded" : "❌ UNDEFINED/EMPTY");
-if (process.env.DATABASE_URL) {
-  console.log("DATABASE_URL starts with:", process.env.DATABASE_URL.substring(0, 15) + "...");
-}
-console.log("--------------------------");
-
+// Initialize your accelerated Prisma client instance
 export const prisma = new PrismaClient({
   accelerateUrl: process.env.DATABASE_URL,
 }).$extends(withAccelerate());
 
-//const prisma = new PrismaClient();
-
-const resend = new Resend(process.env.RESEND_API_KEY || '');
-
 const authOptions: any = {
   adapter: PrismaAdapter(prisma as any),
+
+  // 1. Change session strategy to JWT. 
+  // Credentials providers do not support database session storage out-of-the-box.
+  session: {
+    strategy: "jwt",
+  },
+
   providers: [
-    EmailProvider({
-      async sendVerificationRequest({ identifier, url }) {
-        try {
-          console.log('[auth] sending verification email to:', identifier);
-          console.log('[auth] verification url:', url);
-
-          if (!process.env.RESEND_FROM) {
-            throw new Error('RESEND_FROM is missing. Set it to a verified Resend sender.');
-          }
-
-          await resend.emails.send({
-            from: process.env.RESEND_FROM,
-            to: identifier,
-            subject: 'Your sign-in link for LocalBuddy',
-            html: `<p>Sign in to LocalBuddy by clicking the link below:</p><p><a href="${url}">Sign in</a></p>`,
-          });
-        } catch (e) {
-          console.error('Resend error', e);
-          throw e;
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Please enter both an email and password.");
         }
+
+        // 2. Look up the user inside your Neon database via Prisma
+        // Ensure you add a `password` field (String type) to your User model in schema.prisma!
+        const user: any = await prisma.user.findUnique({
+          where: {
+            email: credentials.email.toLowerCase().trim(),
+          },
+        });
+
+        // If user doesn't exist or doesn't have a password set (e.g. social signup fallback)
+        if (!user || !user.password) {
+          throw new Error("No user found with those credentials.");
+        }
+
+        // 3. Compare the typed password with the hashed password stored in the database
+        const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
+
+        if (!isPasswordValid) {
+          throw new Error("Invalid password. Please try again.");
+        }
+
+        // Return user object to encode inside the JWT token session block
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role || 'CUSTOMER',
+        };
       },
     }),
   ],
@@ -51,13 +66,27 @@ const authOptions: any = {
     signIn: '/login',
   },
   callbacks: {
-    async session({ session, user }: any) {
-      if (session.user) session.user.role = user.role || 'CUSTOMER';
+    // 4. Pass custom fields (like role) from authorize() down into the token payload
+    async jwt({ token, user }: any) {
+      if (user) {
+        token.id = user.id;
+        token.role = user.role;
+      }
+      return token;
+    },
+    // 5. Expose those token custom properties directly onto the client session object
+    async session({ session, token }: any) {
+      if (session.user) {
+        session.user.id = token.id;
+        session.user.role = token.role || 'CUSTOMER';
+      }
       return session;
     },
     async redirect({ url, baseUrl }: any) {
-      // After sign-in via email link, send users to a UX completion page
-      return '/auth/complete';
+      // Allows relative callback URLs or falls back to home domain safety rules
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      else if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
