@@ -56,7 +56,7 @@ export default function LoginForm() {
         return;
       }
       setSuccess('Successfully signed in!');
-      router.push('/dashboard');
+      router.replace('/dashboard');
     } catch (err) {
       console.error('Auth error:', err);
       setError('Something went wrong. Please try again.');
