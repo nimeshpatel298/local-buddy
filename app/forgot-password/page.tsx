@@ -23,13 +23,25 @@ export default function ForgotPasswordPage() {
     }
 
     try {
-      const res = await signIn('email', { email: email.toLowerCase().trim(), redirect: false });
+      // 🚀 Fix: Hit your backend API endpoint instead of the NextAuth email provider
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.toLowerCase().trim() }),
+      });
+
+      const data = await res.json();
       setLoading(false);
-      if (res && (res as any).error) {
-        setError((res as any).error || 'Unable to send reset link.');
+
+      if (!res.ok) {
+        setError(data.message || 'Unable to send reset link.');
         return;
       }
-      setSuccess('If an account exists, a sign-in link has been sent to your email.');
+
+      // Show success state
+      setSuccess('If an account exists, a secure password reset link has been sent to your email.');
     } catch (err) {
       console.error(err);
       setError('Something went wrong. Please try again.');

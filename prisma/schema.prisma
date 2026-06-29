@@ -1,36 +1,40 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id            String    @id @default(cuid())
-  email         String?   @unique
-  password      String?   
-  name          String?
-  role          String    @default("CUSTOMER")
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
-  createdAt     DateTime  @default(now())
+generator client {
+  provider = "prisma-client-js"
 }
 
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  password      String?   // Nullable because Google/Apple users don't have passwords
+  emailVerified DateTime? // Nullable: null means account is inactive/unverified
+  image         String?
+  role          String    @default("CUSTOMER")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relationships
+  accounts      Account[]
+  sessions      Session[]
+}
+
+// 💡 Crucial for Google / Apple OAuth linking
 model Account {
   id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?
-  access_token      String?
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?
+  id_token          String? @db.Text
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -43,14 +47,30 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// 💡 Used for BOTH Activation Links and Password Resets
 model VerificationToken {
-  identifier String
+  id         String   @id @default(cuid())
+  email      String
   token      String   @unique
+  type       String   // "ACTIVATION" or "PASSWORD_RESET"
   expires    DateTime
 
-  @@unique([identifier, token])
+  @@unique([email, token])
+}
+
+
+// Add this model to your prisma/schema.prisma file
+
+model EmailLog {
+  id        String   @id @default(cuid())
+  email     String   // Recipient email address
+  type      String   // "ACTIVATION", "WELCOME", "PASSWORD_RESET"
+  status    String   // "PENDING", "SUCCESS", "FAILED"
+  error     String?  // Stores error messages if delivery fails
+  sentAt    DateTime @default(now())
+
+  @@index([email]) // Optimized for fast lookups by user email
 }

@@ -40,6 +40,9 @@ const authOptions: any = {
           },
         });
 
+        if (!user.emailVerified) {
+          throw new Error("Please activate your account via the email link sent to you before logging in.");
+        }
         // If user doesn't exist or doesn't have a password set (e.g. social signup fallback)
         if (!user || !user.password) {
           throw new Error("No user found with those credentials.");
